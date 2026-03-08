@@ -16,12 +16,37 @@
 //!
 //! 测试完成后会在 `docs/` 目录生成 `BM25_EVALUATION_REPORT.md` 报告。
 
+use contextfy_core::parser::extract_code_block_keywords;
 use contextfy_core::search::{create_index, Indexer, Searcher};
 use contextfy_core::storage::KnowledgeRecord;
 
 // =============================================================================
 // Mock 数据集：Minecraft 模组开发文档
 // =============================================================================
+
+/// 从原始内容创建 KnowledgeRecord，使用生产级解析器自动提取关键词
+///
+/// 这确保测试真实反映系统的处理能力，而不是依赖手工编写的"完美"关键词。
+fn create_document_from_content(
+    id: &str,
+    title: &str,
+    parent_doc_title: &str,
+    summary: &str,
+    content: &str,
+    source_path: &str,
+) -> KnowledgeRecord {
+    // 使用生产级解析器从代码块中提取关键词
+    let keywords = extract_code_block_keywords(content);
+    KnowledgeRecord {
+        id: id.to_string(),
+        title: title.to_string(),
+        parent_doc_title: parent_doc_title.to_string(),
+        summary: summary.to_string(),
+        content: content.to_string(),
+        source_path: source_path.to_string(),
+        keywords,
+    }
+}
 
 /// 创建模拟文档数据集
 ///
@@ -30,14 +55,17 @@ use contextfy_core::storage::KnowledgeRecord;
 /// - 概念说明（事件系统、组件系统）
 /// - 中文内容
 /// - 技术散文
+///
+/// **关键修复**: 所有关键词均由生产级解析器从 content 自动提取，
+/// 而非手工编写。这确保测试真实反映系统处理能力。
 fn create_mock_documents() -> Vec<KnowledgeRecord> {
     vec![
-        KnowledgeRecord {
-            id: "doc-001".to_string(),
-            title: "createItem 函数".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "创建自定义物品的 API 函数".to_string(),
-            content: r#"
+        create_document_from_content(
+            "doc-001",
+            "createItem 函数",
+            "Minecraft 模组开发指南",
+            "创建自定义物品的 API 函数",
+            r#"
 `createItem` 函数用于在 Minecraft 模组中创建自定义物品。
 
 ```javascript
@@ -53,17 +81,15 @@ function createItem(identifier, itemName) {
 ```javascript
 const mySword = createItem("my_mod:dragon_sword", "龙之剑");
 ```
-"#
-            .to_string(),
-            source_path: "/docs/api/createItem.md".to_string(),
-            keywords: vec!["createItem".to_string(), "function".to_string()],
-        },
-        KnowledgeRecord {
-            id: "doc-002".to_string(),
-            title: "BlockCustomComponent 类".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "自定义方块组件系统".to_string(),
-            content: r#"
+"#,
+            "/docs/api/createItem.md",
+        ),
+        create_document_from_content(
+            "doc-002",
+            "BlockCustomComponent 类",
+            "Minecraft 模组开发指南",
+            "自定义方块组件系统",
+            r#"
 `BlockCustomComponent` 是自定义方块行为的核心类。
 
 ```javascript
@@ -89,17 +115,15 @@ customBlock.onPlayerInteract = (event) => {
     event.player.sendMessage("你与方块交互了！");
 };
 ```
-"#
-            .to_string(),
-            source_path: "/docs/api/BlockCustomComponent.md".to_string(),
-            keywords: vec!["BlockCustomComponent".to_string(), "class".to_string()],
-        },
-        KnowledgeRecord {
-            id: "doc-003".to_string(),
-            title: "注册方块系统".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "如何在模组中注册自定义方块".to_string(),
-            content: r#"
+"#,
+            "/docs/api/BlockCustomComponent.md",
+        ),
+        create_document_from_content(
+            "doc-003",
+            "注册方块系统",
+            "Minecraft 模组开发指南",
+            "如何在模组中注册自定义方块",
+            r#"
 方块注册是模组开发的基础步骤。
 
 首先，使用 `BlockRegistry.create()` 创建方块定义：
@@ -117,21 +141,15 @@ World.registerBlock(myBlock);
 注意事项：
 - 方块标识符必须包含模组命名空间
 - 材质和硬度值是必需的
-"#
-            .to_string(),
-            source_path: "/docs/guide/block-registration.md".to_string(),
-            keywords: vec![
-                "BlockRegistry".to_string(),
-                "create".to_string(),
-                "register".to_string(),
-            ],
-        },
-        KnowledgeRecord {
-            id: "doc-004".to_string(),
-            title: "事件系统概述".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "Minecraft 模组事件处理机制".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/block-registration.md",
+        ),
+        create_document_from_content(
+            "doc-004",
+            "事件系统概述",
+            "Minecraft 模组开发指南",
+            "Minecraft 模组事件处理机制",
+            r#"
 事件系统允许模组响应游戏中的各种动作。
 
 ## 事件类型
@@ -148,21 +166,15 @@ EventManager.on(PlayerInteractEvent, (event) => {
     console.log("玩家交互了", event.block);
 });
 ```
-"#
-            .to_string(),
-            source_path: "/docs/guide/event-system.md".to_string(),
-            keywords: vec![
-                "EventManager".to_string(),
-                "on".to_string(),
-                "Event".to_string(),
-            ],
-        },
-        KnowledgeRecord {
-            id: "doc-005".to_string(),
-            title: "createItem 高级用法".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "自定义物品属性和纹理".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/event-system.md",
+        ),
+        create_document_from_content(
+            "doc-005",
+            "createItem 高级用法",
+            "Minecraft 模组开发指南",
+            "自定义物品属性和纹理",
+            r#"
 `createItem` 支持设置丰富的物品属性。
 
 ```javascript
@@ -184,21 +196,15 @@ const dragonSword = createItemWithProperties("my_mod:dragon_sword", {
     category: "equipment"
 });
 ```
-"#
-            .to_string(),
-            source_path: "/docs/api/createItem-advanced.md".to_string(),
-            keywords: vec![
-                "createItem".to_string(),
-                "createItemWithProperties".to_string(),
-                "function".to_string(),
-            ],
-        },
-        KnowledgeRecord {
-            id: "doc-006".to_string(),
-            title: "方块 组件".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "自定义方块行为和属性".to_string(),
-            content: r#"
+"#,
+            "/docs/api/createItem-advanced.md",
+        ),
+        create_document_from_content(
+            "doc-006",
+            "方块 组件",
+            "Minecraft 模组开发指南",
+            "自定义方块行为和属性",
+            r#"
 方块（Block）是 Minecraft 的核心构建单位。
 
 使用 `BlockCustomComponent` 可以完全自定义方块的行为：
@@ -215,21 +221,15 @@ class PressurePlateComponent extends BlockCustomComponent {
     }
 }
 ```
-"#
-            .to_string(),
-            source_path: "/docs/guide/block-components.md".to_string(),
-            keywords: vec![
-                "BlockCustomComponent".to_string(),
-                "方块".to_string(),
-                "PressurePlateComponent".to_string(),
-            ],
-        },
-        KnowledgeRecord {
-            id: "doc-007".to_string(),
-            title: "物品 注册".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "物品注册系统和流程".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/block-components.md",
+        ),
+        create_document_from_content(
+            "doc-007",
+            "物品 注册",
+            "Minecraft 模组开发指南",
+            "物品注册系统和流程",
+            r#"
 物品注册需要使用 `ItemRegistry`。
 
 ```javascript
@@ -246,21 +246,15 @@ function registerCustomItem(identifier, itemData) {
 2. 设置属性
 3. 注册到游戏
 4. 添加配方和纹理
-"#
-            .to_string(),
-            source_path: "/docs/guide/item-registration.md".to_string(),
-            keywords: vec![
-                "ItemRegistry".to_string(),
-                "register".to_string(),
-                "registerCustomItem".to_string(),
-            ],
-        },
-        KnowledgeRecord {
-            id: "doc-008".to_string(),
-            title: "MinecraftBlockComponent 接口".to_string(),
-            parent_doc_title: "Minecraft 模组开发 API".to_string(),
-            summary: "官方方块组件接口定义".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/item-registration.md",
+        ),
+        create_document_from_content(
+            "doc-008",
+            "MinecraftBlockComponent 接口",
+            "Minecraft 模组开发 API",
+            "官方方块组件接口定义",
+            r#"
 `MinecraftBlockComponent` 是所有方块组件的基接口。
 
 ```typescript
@@ -285,20 +279,15 @@ class MyComponent implements MinecraftBlockComponent {
     }
 }
 ```
-"#
-            .to_string(),
-            source_path: "/docs/api/MinecraftBlockComponent.md".to_string(),
-            keywords: vec![
-                "MinecraftBlockComponent".to_string(),
-                "interface".to_string(),
-            ],
-        },
-        KnowledgeRecord {
-            id: "doc-009".to_string(),
-            title: "定义自定义物品".to_string(),
-            parent_doc_title: "Minecraft 模组开发教程".to_string(),
-            summary: "从零开始创建模组物品".to_string(),
-            content: r#"
+"#,
+            "/docs/api/MinecraftBlockComponent.md",
+        ),
+        create_document_from_content(
+            "doc-009",
+            "定义自定义物品",
+            "Minecraft 模组开发教程",
+            "从零开始创建模组物品",
+            r#"
 自定义物品让你的模组独一无二。
 
 ## 步骤 1：使用 createItem
@@ -333,21 +322,15 @@ RecipeRegistry.createShaped(newItem, [
     S: "minecraft:stick"
 });
 ```
-"#
-            .to_string(),
-            source_path: "/docs/tutorial/define-custom-item.md".to_string(),
-            keywords: vec![
-                "createItem".to_string(),
-                "ItemRegistry".to_string(),
-                "RecipeRegistry".to_string(),
-            ],
-        },
-        KnowledgeRecord {
-            id: "doc-010".to_string(),
-            title: "事件处理最佳实践".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "高效处理游戏事件".to_string(),
-            content: r#"
+"#,
+            "/docs/tutorial/define-custom-item.md",
+        ),
+        create_document_from_content(
+            "doc-010",
+            "事件处理最佳实践",
+            "Minecraft 模组开发指南",
+            "高效处理游戏事件",
+            r#"
 事件处理是模组与游戏交互的主要方式。
 
 ## 监听事件
@@ -374,22 +357,15 @@ EventManager.on(EntityDeathEvent, (event) => {
 ```javascript
 EventManager.on(PlayerInteractEvent, handler, EventPriority.HIGH);
 ```
-"#
-            .to_string(),
-            source_path: "/docs/guide/event-handling.md".to_string(),
-            keywords: vec![
-                "EventManager".to_string(),
-                "on".to_string(),
-                "EntityDeathEvent".to_string(),
-                "PlayerInteractEvent".to_string(),
-            ],
-        },
-        KnowledgeRecord {
-            id: "doc-011".to_string(),
-            title: "方块数据存储".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "在方块中存储自定义数据".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/event-handling.md",
+        ),
+        create_document_from_content(
+            "doc-011",
+            "方块数据存储",
+            "Minecraft 模组开发指南",
+            "在方块中存储自定义数据",
+            r#"
 使用 `BlockCustomComponent` 可以存储方块状态。
 
 ```javascript
@@ -410,17 +386,15 @@ class ChestBlock extends BlockCustomComponent {
 const data = event.block.getCustomData("inventory");
 const inventory = Inventory.deserialize(data);
 ```
-"#
-            .to_string(),
-            source_path: "/docs/guide/block-data.md".to_string(),
-            keywords: vec!["BlockCustomComponent".to_string(), "方块".to_string()],
-        },
-        KnowledgeRecord {
-            id: "doc-012".to_string(),
-            title: "createItem 参数说明".to_string(),
-            parent_doc_title: "Minecraft 模组 API 参考".to_string(),
-            summary: "createItem 函数的完整参数列表".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/block-data.md",
+        ),
+        create_document_from_content(
+            "doc-012",
+            "createItem 参数说明",
+            "Minecraft 模组 API 参考",
+            "createItem 函数的完整参数列表",
+            r#"
 `createItem(identifier, itemName, options?)` 函数签名。
 
 ## 参数
@@ -439,21 +413,15 @@ const inventory = Inventory.deserialize(data);
 ## 异常
 
 如果标识符格式无效，抛出 `InvalidArgumentException`。
-"#
-            .to_string(),
-            source_path: "/docs/api/createItem-params.md".to_string(),
-            keywords: vec![
-                "createItem".to_string(),
-                "function".to_string(),
-                "Item".to_string(),
-            ],
-        },
-        KnowledgeRecord {
-            id: "doc-013".to_string(),
-            title: "多语言支持".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "为模组添加多语言翻译".to_string(),
-            content: r#"
+"#,
+            "/docs/api/createItem-params.md",
+        ),
+        create_document_from_content(
+            "doc-013",
+            "多语言支持",
+            "Minecraft 模组开发指南",
+            "为模组添加多语言翻译",
+            r#"
 支持多语言让你的模组可以被全球玩家使用。
 
 ## 语言文件结构
@@ -477,17 +445,15 @@ LanguageRegistry.register("zh_cn", {
     "item.my_mod.dragon_sword": "龙之剑"
 });
 ```
-"#
-            .to_string(),
-            source_path: "/docs/guide/localization.md".to_string(),
-            keywords: vec!["LanguageRegistry".to_string(), "register".to_string()],
-        },
-        KnowledgeRecord {
-            id: "doc-014".to_string(),
-            title: "配方系统".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "创建和使用合成配方".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/localization.md",
+        ),
+        create_document_from_content(
+            "doc-014",
+            "配方系统",
+            "Minecraft 模组开发指南",
+            "创建和使用合成配方",
+            r#"
 配方系统定义了物品的合成方式。
 
 ## 有序配方
@@ -515,22 +481,15 @@ RecipeRegistry.createShapeless(result, [
 ```javascript
 RecipeRegistry.createSmelting(input, output, 200, 1.0);
 ```
-"#
-            .to_string(),
-            source_path: "/docs/guide/recipe-system.md".to_string(),
-            keywords: vec![
-                "RecipeRegistry".to_string(),
-                "createShaped".to_string(),
-                "createShapeless".to_string(),
-                "createSmelting".to_string(),
-            ],
-        },
-        KnowledgeRecord {
-            id: "doc-015".to_string(),
-            title: "方块 状态".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "处理方块的多种状态".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/recipe-system.md",
+        ),
+        create_document_from_content(
+            "doc-015",
+            "方块 状态",
+            "Minecraft 模组开发指南",
+            "处理方块的多种状态",
+            r#"
 方块可以有多个状态，如朝向、开关状态等。
 
 ```javascript
@@ -546,17 +505,15 @@ const state = event.block.getState();
 const isOpen = state.getBoolean("open");
 const facing = state.getString("facing");
 ```
-"#
-            .to_string(),
-            source_path: "/docs/guide/block-states.md".to_string(),
-            keywords: vec!["BlockRegistry".to_string(), "方块".to_string()],
-        },
-        KnowledgeRecord {
-            id: "doc-016".to_string(),
-            title: "物品 纹理".to_string(),
-            parent_doc_title: "Minecraft 模组资源指南".to_string(),
-            summary: "为物品添加自定义纹理".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/block-states.md",
+        ),
+        create_document_from_content(
+            "doc-016",
+            "物品 纹理",
+            "Minecraft 模组资源指南",
+            "为物品添加自定义纹理",
+            r#"
 纹理让物品在游戏中呈现正确的外观。
 
 ## 纹理规格
@@ -579,17 +536,15 @@ sword.setTextureProvider((item, stack) => {
     return stack.getDamage() > 50 ? "damaged_sword.png" : "sword.png";
 });
 ```
-"#
-            .to_string(),
-            source_path: "/docs/guide/item-textures.md".to_string(),
-            keywords: vec!["createItem".to_string(), "物品".to_string()],
-        },
-        KnowledgeRecord {
-            id: "doc-017".to_string(),
-            title: "性能优化指南".to_string(),
-            parent_doc_title: "Minecraft 模组开发最佳实践".to_string(),
-            summary: "优化模组性能的技巧".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/item-textures.md",
+        ),
+        create_document_from_content(
+            "doc-017",
+            "性能优化指南",
+            "Minecraft 模组开发最佳实践",
+            "优化模组性能的技巧",
+            r#"
 良好的性能优化确保模组不会拖慢游戏。
 
 ## 事件处理优化
@@ -621,17 +576,15 @@ if (shouldUpdate) {
     event.block.markDirty();
 }
 ```
-"#
-            .to_string(),
-            source_path: "/docs/guide/performance.md".to_string(),
-            keywords: vec!["EventManager".to_string(), "on".to_string()],
-        },
-        KnowledgeRecord {
-            id: "doc-018".to_string(),
-            title: "调试和测试".to_string(),
-            parent_doc_title: "Minecraft 模组开发指南".to_string(),
-            summary: "模组调试技巧和工具".to_string(),
-            content: r#"
+"#,
+            "/docs/guide/performance.md",
+        ),
+        create_document_from_content(
+            "doc-018",
+            "调试和测试",
+            "Minecraft 模组开发指南",
+            "模组调试技巧和工具",
+            r#"
 调试是开发流程的重要部分。
 
 ## 日志输出
@@ -660,11 +613,9 @@ if (Environment.isTestMode()) {
   A: 检查是否调用了 `ItemRegistry.register()`
 - Q: 方块无法放置？
   A: 确认方块已注册且材质正确
-"#
-            .to_string(),
-            source_path: "/docs/guide/debugging.md".to_string(),
-            keywords: vec!["createItem".to_string(), "ItemRegistry".to_string()],
-        },
+"#,
+            "/docs/guide/debugging.md",
+        ),
     ]
 }
 
@@ -814,11 +765,16 @@ fn naive_match_search(query: &str, documents: &[KnowledgeRecord]) -> Vec<(String
 /// BM25 搜索封装
 ///
 /// 使用现有的 Tantivy Searcher 执行 BM25 全文搜索。
+///
+/// **关键修复**: 不再静默吞咽错误，搜索失败必须触发 panic，
+/// 确保测试在索引或搜索出现问题时立即失败，而非返回空结果。
 fn bm25_search(searcher: &Searcher, query: &str, limit: usize) -> Vec<(String, f32)> {
-    match searcher.search(query, limit) {
-        Ok(results) => results.into_iter().map(|r| (r.id, r.score)).collect(),
-        Err(_) => Vec::new(),
-    }
+    searcher
+        .search(query, limit)
+        .expect("BM25 search failed")
+        .into_iter()
+        .map(|r| (r.id, r.score))
+        .collect()
 }
 
 // =============================================================================
@@ -982,11 +938,11 @@ fn generate_report(report: &EvaluationReport) -> String {
             };
 
             output.push_str(&format!(
-                "| {} | {} {} | {} {} |\n",
+                "| {} | {} | {} | {} {} |\n",
                 i + 1,
                 m1_result,
-                m1_status,
                 bm25_result,
+                m1_status,
                 bm25_status
             ));
         }
@@ -1227,26 +1183,24 @@ fn test_bm25_evaluation() {
 
     // 10. 生成并保存报告到磁盘（docs 目录）
     let report_content = generate_report(&report);
-    // 保存到 docs 目录，符合项目结构规范
-    let report_path = "../../../docs/BM25_EVALUATION_REPORT.md";
+    // **关键修复**: 使用 CARGO_MANIFEST_DIR 而非相对路径，避免从不同目录运行测试时路径失效
+    let report_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/BM25_EVALUATION_REPORT.md");
 
-    // 确保 docs 目录存在
-    if let Some(parent) = std::path::Path::new(report_path).parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
-            eprintln!("⚠️  警告: 无法创建 docs 目录: {}", e);
-        }
+    // **关键修复**: 文件 I/O 失败必须触发 panic，拒绝静默吞咽错误
+    if let Some(parent) = report_path.parent() {
+        std::fs::create_dir_all(parent).expect("Failed to create docs directory");
     }
 
-    if let Err(e) = std::fs::write(report_path, report_content) {
-        eprintln!("⚠️  警告: 无法写入报告文件: {}", e);
-        eprintln!("   提示: 请从项目根目录运行测试，或检查目录权限");
-    } else {
-        // 解析绝对路径以便显示
-        match std::fs::canonicalize(report_path) {
-            Ok(abs_path) => println!("📄 详细报告已保存到: {}\n", abs_path.display()),
-            Err(_) => println!("📄 详细报告已保存到: {}\n", report_path),
-        }
-    }
+    // **关键修复**: 删除旧报告，保持目录干净
+    let _ = std::fs::remove_file(&report_path);
+
+    std::fs::write(&report_path, report_content).expect("Failed to write report file");
+
+    // 解析绝对路径以便显示
+    let abs_path = std::fs::canonicalize(&report_path)
+        .unwrap_or_else(|_| report_path.clone());
+    println!("📄 详细报告已保存到: {}\n", abs_path.display());
 
     // 11. 质量门禁断言
     println!("╔══════════════════════════════════════════════════════════════════════╗");
@@ -1270,8 +1224,20 @@ fn test_bm25_evaluation() {
     println!();
 
     // 12. 断言质量门禁
+    // **关键修复**: 添加动态质量门禁 - BM25 必须不显著逊于 M1 基线，
+    // 防止在 M1 表现明显更好时错误地接受 BM25 实现。
+    // 使用 35% 容差，允许不同搜索策略的合理差异（M1 基于简单匹配，
+    // BM25 基于统计相关性），同时捕捉极端回归。
     assert!(
-        bm25_accuracy > 0.70,
+        bm25_accuracy >= m1_accuracy - 0.35,
+        "BM25 Top-3 准确率 ({:.1}%) 不应显著低于 M1 ({:.1}%)，容差 35%",
+        bm25_accuracy * 100.0,
+        m1_accuracy * 100.0
+    );
+
+    // 13. 静态质量门禁：BM25 必须达到 70% 准确率
+    assert!(
+        bm25_accuracy >= 0.70,
         "BM25 Top-3 准确率 ({:.1}%) 必须达到 70%",
         bm25_accuracy * 100.0
     );
